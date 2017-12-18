@@ -1,0 +1,147 @@
+---
+title: "Regression Models: Impact of Transmission on MPG"
+output: pdf_document
+---
+##by: 335emily
+
+````{r, echo=FALSE}
+library("datasets")
+library("ggplot2")
+````
+
+## Executive Summary
+In this report we aim to determine if automatic or manual transmission is better for miles per gallon (MPG), and quantify the impact automatic and manual transmissions have on MPG.
+
+Our findings indicate that manual transmission is associated with higher MPG. Weight and quarter-mile time are also statistically significant predictors of MPG.
+
+Weight and quarter-mile being equal, a manual car will have 2.9 more MPG than an automatic car.
+
+## Strategy for Model Selection
+Given the coefficient of interest (MPG), we will assess:
+
+1. A multi-variate linear model that considers all other variables as predictors
+2. A single variable linear model that only considers transmission as a predictor
+3. All variables regressed against each other
+4. A multi-variate linear model created with the Stepwise algorithm to determine which variables are statistically significant
+
+Then, a residual plot will be used to confirm the residuals are "balanced" among the data points.
+
+## Understanding the Data and Interpreting the Coefficients
+````{r,echo=FALSE}
+numobs<- length(mtcars[,1])
+numvar <- length(mtcars[1,])
+````
+The mtcars dataset has `r numobs` observations of `r numvar` variables. **See appendix [0] for variable definitions.** cyl, vs, am and gear should be classified as factor variables:
+
+````{r}
+mtcarsClean <- mtcars
+mtcarsClean$cyl <- as.factor(mtcarsClean$cyl) 
+mtcarsClean$vs <- as.factor(mtcarsClean$vs) 
+levels(mtcarsClean$vs) <- c("V", "S")
+mtcarsClean$am <- as.factor(mtcarsClean$am) 
+levels(mtcarsClean$am) <- c("automatic", "manual")
+mtcarsClean$gear <- as.factor(mtcarsClean$gear) 
+mtcarsClean$carb <- as.factor(mtcarsClean$carb) 
+````
+
+
+## Exploratory Data Analysis
+### 1. Including All Variables in MPG Estimation Linear Model
+First, consider the linear model for MPG with all variables included:
+
+````{r}
+fitAll <- lm(mpg ~ . , data = mtcarsClean)
+````
+
+**See appendix [1] for summary of fitAll.** This model suggests that all things being equal, a manual car has an MPG `r round(coef(summary(fitAll))["ammanual","Estimate"],3)` higher than automatic cars.
+
+The Adjusted R-squared value is `r round(summary(fitAll)$adj.r.squared,3)`, which means that the model can explain about `r round(summary(fitAll)$adj.r.squared,3)*100`% of the variance of the MPG variable. However, none of the coefficients are significant at 0.05 significance level.
+
+### 2. Using Only Transmission to Estimate MPG
+Consider the unadjusted comparison between automatic and manual cars; first a box and whisker plot. A box and whisker plot shows that cars with manual transmissions have a higher MPG than cars with automatic transmissions. However, other variables may impact MPG. **See appendix [2] for the box plot.**
+
+Consider the unadjusted linear regression:
+
+````{r}
+fitAM <- lm(mpg ~ am, data = mtcarsClean)
+````
+
+**See appendix [3] for the summary of fitAM.** This model suggests that manual cars have an MPG `r round(coef(summary(fitAM))["ammanual","Estimate"],3)` higher than automatic cars.
+
+The Adjusted R-squared value is `r round(summary(fitAM)$adj.r.squared,3)`, which means that the model can explain about `r round(summary(fitAM)$adj.r.squared,3)*100`% of the variance of the MPG variable. The relatively low R-squared indicates other variables may also explain model variance.
+
+
+### 3. Comparing All Variables to Each Other
+**See appendix [4] for the graphs of the relationship between all variables.** This shows that there are no notable outliers in the data for MPG.
+
+### 4. Selecting a Model with the Stepwise Algorithm
+In order to determine which variables to include, we will use the a Stepwise algorithm, with the step function, by B. D. Ripley. See more information [at this link (click)](https://www.math.ucla.edu/~anderson/rw1001/library/base/html/step.html).
+
+````{r}
+fitStep <- step(fitAll, k=log(nrow(mtcarsClean)),trace=0)
+````
+
+**See appendix [5] for the summary of the fitStep model**. From this, we see that weight (wt), 1/4 mile time (qsec) and transmission (am) are all significant at the 0.05 level. This model suggests that manual cars have an MPG `r round(coef(summary(fitStep))["ammanual","Estimate"],3)` higher than automatic cars.
+
+The Adjusted R-squared value is `r round(summary(fitStep)$adj.r.squared,3)`, which means that the model can explain about `r round(summary(fitStep)$adj.r.squared,3)*100`% of the variance of the MPG variable. This is the highest Adjusted R-squared of the assessed models.
+
+## Residual Plot
+**See appendix [6] for the residual plot.** The residual plot confirm the residuals are "balanced" among the data points. Residuals must be uncorrelated with predictors, because if the residuals and predictors were correlated, we could make a better prediction to reduce the residuals. 
+
+## Conclusions
+Using the 3 variables shown as statistically significant in the Stepwise algorithm gets us close to a suitable prediction However, the relationships are not known to be causal, and correlation may be coincidental or not specific to these 3 predictors.
+
+Next steps would be to test the model against additional data that was not included in the original analysis to determine if the model remains similarily accurate. Additionally, other variables not included in this data set may further reduce the correlation of residuals.
+
+******
+
+## Appendices
+### [0] Variable Definitions
+
+Variable Name  | Variable Definition
+------------- |  -------------
+mpg | Miles/(US) gallon
+cyl | Number of cylinders
+disp | Displacement (cu.in.)
+hp | Gross horsepower
+drat | Rear axle ratio
+wt | Weight (1000 lbs)
+qsec | 1/4 mile time
+vs | V/S
+am | Transmission (0 = automatic, 1 = manual)
+gear | Number of forward gears
+carb | Number of carburetors
+
+### [1] Summary of fitAll Model (all variables regressed against mpg)
+````{r}
+summary(fitAll)
+````
+
+### [2] Box plot of Transmission to MPG
+```{r,print = FALSE}
+p <- ggplot(mtcarsClean, aes(am, mpg)) 
+p + geom_boxplot(aes(fill = am))
+````
+
+### [3] Summary of fitAM Model (transmission variable regressed against mpg)
+````{r}
+summary(fitAM)
+````
+
+### [4] Relationships between All Variables
+````{r}
+require(stats)
+require(graphics)
+pairs(mtcarsClean, lower.panel = panel.smooth, upper.panel=NULL, main = "Car data", col = 3 )
+````
+
+### [5] Summary of fitStep Model (variables determined by the Stepwise Algorithm)
+````{r}
+summary(fitStep)
+````
+
+### [6] Residual plot for fitStep Model
+````{r}
+par(mfrow = c(2, 2))
+plot(fitStep)
+````
